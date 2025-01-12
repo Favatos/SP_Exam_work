@@ -44,7 +44,7 @@
         <ProgressBar x:Name="p2" Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" Height="20"/>
         <ProgressBar x:Name="p3" Grid.Row="6" Grid.Column="1" VerticalAlignment="Center" Height="20"/>
 
-        <ProgressBar x:Name="p4"  Grid.Row="9" Grid.ColumnSpan="3"/>
+        <ProgressBar x:Name="p4"  Maximum="1" Grid.Row="9" Grid.ColumnSpan="3"/>
         <UniformGrid Rows="1" Grid.Row="10" Grid.ColumnSpan="3">
             <Button x:Name="ButtonCancel"  Click="ButtonCancel_Click" IsEnabled="False">Cansel</Button>
             <Button x:Name="ButtonCopy"  Click="ButtonCopy_Click">Copy</Button>

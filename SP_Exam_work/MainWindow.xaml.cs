@@ -39,7 +39,7 @@ namespace SP_Exam_work
         private async void ButtonCopy_Click(object sender, RoutedEventArgs e)
         {
             if (pathFrom.Text.Length == 0 || pathTo.Text.Length == 0) return;
-
+            List<string> copiedFiles = new();
             try
             {
                 ButtonCopy.IsEnabled = false;
@@ -62,7 +62,7 @@ namespace SP_Exam_work
                 for (int i = 0; i < threadCount; i++)
                 {
                     int threadIndex = i;
-                    tasks.Add(CopyFiles(sublists[threadIndex], pathTo.Text, progressBars[threadIndex], textBlocks[threadIndex], progressTexts[threadIndex], cancel.Token));
+                    tasks.Add(CopyFiles(sublists[threadIndex], pathTo.Text, progressBars[threadIndex], textBlocks[threadIndex], progressTexts[threadIndex], cancel.Token, copiedFiles));
                 }
                 tasks.Add(MoveProgress(p4, cancel.Token));
 
@@ -72,10 +72,12 @@ namespace SP_Exam_work
             catch (OperationCanceledException)
             {
                 MessageBox.Show("Copy operation was canceled.", "Canceled", MessageBoxButton.OK, MessageBoxImage.Warning);
+                DeleteCopiedFiles(copiedFiles);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DeleteCopiedFiles(copiedFiles);
             }
             finally
             {
@@ -89,36 +91,36 @@ namespace SP_Exam_work
             cancel?.Cancel();
         }
 
-        private static async Task CopyFiles(List<string> from, string to, ProgressBar p, TextBlock t1, TextBlock t2, CancellationToken token)
+        private static async Task CopyFiles(List<string> from, string to, ProgressBar p, TextBlock t1, TextBlock t2, CancellationToken token, List<string> copiedFiles)
         {
             await p.Dispatcher.InvokeAsync(() => p.Maximum = from.Count());
-            long a = 0;
-            foreach (string path in from)
-            {
-                a += new System.IO.FileInfo(path).Length;
-            }
             foreach (var file in from)
             {
-                string fileName = System.IO.Path.GetFileName(file);
+                string fileName = Path.GetFileName(file);
+                long fileSize = new FileInfo(file).Length;
                 await t1.Dispatcher.InvokeAsync(() => t1.Text = fileName);
-                string destinationPath = System.IO.Path.Combine(to, fileName);
+                string destinationPath = Path.Combine(to, fileName);
                 using (Stream @in = File.OpenRead(file))
                 using (Stream @out = File.Create(destinationPath))
                 {
                     int block = 10 * 1024 * 1024;
                     byte[] buffer = new byte[block];
                     int read;
+                    int copied = 0;
 
                     while ((read = await @in.ReadAsync(buffer, 0, buffer.Length)) != 0)
                     {
                         if (token.IsCancellationRequested) return;
                         await @out.WriteAsync(buffer, 0, read);
+                        copied += read;
                         lock (key)
                         {
                             allRead += read;
+                            copiedFiles.Add(destinationPath);
                         }
-                        await t2.Dispatcher.InvokeAsync(() => t2.Text = $"{a}/{read}");
+                        await t2.Dispatcher.InvokeAsync(() => t2.Text = $"{copied/1024}/{fileSize/1024} KB");
                     }
+
                     await p.Dispatcher.InvokeAsync(() => p.Value += 1);
                 }
             }
@@ -160,5 +162,24 @@ namespace SP_Exam_work
 
             }
         }
+
+        private static void DeleteCopiedFiles(List<string> copiedFiles)
+        {
+            foreach (var file in copiedFiles)
+            {
+                try
+                {
+                    if (File.Exists(file))
+                    {
+                        File.Delete(file);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to delete file '{file}': {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
     }
 }
